@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_login/flutter_login.dart';
 import 'package:flutter_login/src/widgets/term_of_service_checkbox.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:intl_phone_number_input/intl_phone_number_input.dart';
-import 'package:phone_numbers_parser/phone_numbers_parser.dart' as pnp;
 import 'package:url_launcher/url_launcher.dart';
 
 enum TextFieldInertiaDirection {
@@ -98,7 +96,6 @@ class _AnimatedTextFormFieldState extends State<AnimatedTextFormField> {
   late Animation<double> iconRotationAnimation;
   late Animation<double> iconTranslateAnimation;
 
-  PhoneNumber? _phoneNumberInitialValue;
   final TextEditingController _phoneNumberController = TextEditingController();
 
   @override
@@ -165,29 +162,6 @@ class _AnimatedTextFormFieldState extends State<AnimatedTextFormField> {
           reverseCurve: Curves.easeIn,
         ),
       );
-    }
-
-    if (widget.userType == LoginUserType.intlPhone) {
-      _phoneNumberInitialValue = PhoneNumber(
-        isoCode: widget.initialIsoCode ?? 'US',
-        dialCode: '+1',
-      );
-      if (widget.controller?.value.text != null) {
-        try {
-          final parsed = pnp.PhoneNumber.parse(widget.controller!.value.text);
-          if (parsed.isValid()) {
-            _phoneNumberInitialValue = PhoneNumber(
-              phoneNumber: parsed.nsn,
-              isoCode: parsed.isoCode.name,
-              dialCode: parsed.countryCode,
-            );
-          }
-        } on pnp.PhoneNumberException {
-          // ignore
-        } finally {
-          widget.controller!.text = '';
-        }
-      }
     }
   }
 
@@ -274,57 +248,19 @@ class _AnimatedTextFormFieldState extends State<AnimatedTextFormField> {
     if (widget.userType == LoginUserType.intlPhone) {
       inputField = Padding(
         padding: const EdgeInsets.only(left: 8),
-        child: InternationalPhoneNumberInput(
+        child: TextFormField(
           cursorColor: theme.primaryColor,
+          controller: _phoneNumberController,
           focusNode: widget.focusNode,
-          inputDecoration: _getInputDecoration(theme),
-          searchBoxDecoration: const InputDecoration(
-            contentPadding: EdgeInsets.only(left: 20),
-            labelText: 'Search by country name or dial code',
-          ),
-          keyboardType: widget.keyboardType ?? TextInputType.phone,
+          decoration: _getInputDecoration(theme),
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
           onFieldSubmitted: widget.onFieldSubmitted,
-          onSaved: (phoneNumber) {
-            if (phoneNumber.phoneNumber == phoneNumber.dialCode) {
-              widget.controller?.text = '';
-            } else {
-              widget.controller?.text = phoneNumber.phoneNumber ?? '';
-            }
-            _phoneNumberController.selection = TextSelection.collapsed(
-              offset: _phoneNumberController.text.length,
-            );
-            widget.onSaved?.call(phoneNumber.phoneNumber);
-          },
+          onSaved: widget.onSaved,
           validator: widget.validator,
+          enabled: widget.enabled,
+          autocorrect: widget.autocorrect,
           autofillHints: widget.autofillHints,
-          onInputChanged: (phoneNumber) {
-            if (phoneNumber.phoneNumber != null &&
-                phoneNumber.dialCode != null &&
-                phoneNumber.phoneNumber!.startsWith('+')) {
-              _phoneNumberController.text =
-                  _phoneNumberController.text.replaceAll(
-                RegExp(
-                  '^([\\+]${phoneNumber.dialCode!.replaceAll('+', '')}[\\s]?)',
-                ),
-                '',
-              );
-            }
-            _phoneNumberController.selection = TextSelection.collapsed(
-              offset: _phoneNumberController.text.length,
-            );
-          },
-          textFieldController: _phoneNumberController,
-          isEnabled: widget.enabled,
-          selectorConfig: SelectorConfig(
-            selectorType: PhoneInputSelectorType.DIALOG,
-            trailingSpace: false,
-            countryComparator: (c1, c2) =>
-                int.parse(c1.dialCode!.substring(1)).compareTo(
-              int.parse(c2.dialCode!.substring(1)),
-            ),
-          ),
-          spaceBetweenSelectorAndTextField: 0,
-          initialValue: _phoneNumberInitialValue,
         ),
       );
     } else if (widget.userType == LoginUserType.checkbox) {
